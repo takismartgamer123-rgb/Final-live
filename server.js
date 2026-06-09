@@ -31,7 +31,7 @@ const CHANNEL_NAME = 'ɪʈʂ ʈɑkɪ!! 🇩🇿²⁴';
 
 let viewers = 0, chatMessages = [];
 let jokeIndex = 0;
-let motivationIndex = 0;
+let motivIndex = 0;
 let currentMode = 'main', currentOverlay = null;
 let ffmpegProcess = null, chatBot = null;
 let channelStats = { subs: '4.9K', views: '2.8M', videos: '36', lastVid: '1M' };
