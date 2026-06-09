@@ -1,6 +1,7 @@
 {
   "name": "taki-ultimate-v12",
   "version": "12.1.0",
+  "description": "TAKI ULTIMATE V12.1 - كنز الإمبراطور الكامل 👑🇩🇿",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
