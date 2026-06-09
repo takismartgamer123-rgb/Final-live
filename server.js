@@ -374,111 +374,54 @@ async function generateOverlay(db) {
 }
 
 // === 4. FFmpeg مع preset ultrafast ===
+let ffmpegProcess = null;
+let currentOverlay = null;
+
 function startFFmpeg() {
   if (ffmpegProcess) { try { ffmpegProcess.kill('SIGKILL'); } catch (e) {} }
-  console.log('تشغيل FFmpeg الإمبراطور... المفتاح:', YT_STREAM_KEY.substring(0, 8));
+  
+  console.log('نحاول نشغل FFmpeg...');
 
   ffmpegProcess = ffmpeg()
-   // 1. صوت صامت - YouTube لازم صوت
   .input('anullsrc=channel_layout=stereo:sample_rate=44100').inputFormat('lavfi')
-   // 2. الصورة تاعك
-  .input('pipe:0').inputOptions(['-f', 'image2pipe', '-framerate', '1', '-update', '1'])
-   // 3. حركة وهمية باه YouTube ما يحسبهاش جامدة
-  .complexFilter([
-      '[1:v] scale=1920:1080,drawbox=x=0:y=0:w=1:h=1:color=black@0.01:t=fill:enable=\'eq(mod(n,30),0)\' [v]'
-    ])
+  .input('pipe:0').inputOptions(['-f', 'image2pipe', '-framerate', '1'])
   .outputOptions([
-      '-map [v]', // الصورة
-      '-map 0:a', // الصوت الصامت
-      '-c:v libx264',
-      '-preset ultrafast',
-      '-tune zerolatency',
-      '-maxrate 3000k',
-      '-bufsize 6000k',
-      '-pix_fmt yuv420p',
-      '-g 60',
-      '-r 30',
-      '-c:a aac', // كودك الصوت
-      '-b:a 128k',
-      '-ar 44100',
+      '-c:v libx264', '-preset ultrafast', '-tune zerolatency',
+      '-pix_fmt yuv420p', '-r 30', '-g 60',
+      '-c:a aac', '-b:a 128k', '-ar 44100',
       '-f flv'
-    ])
+  ])
   .output(`rtmp://a.rtmp.youtube.com/live2/${YT_STREAM_KEY}`)
-  .on('start', (cmd) => {
-      console.log('FFmpeg بدأ البث الإمبراطوري 👑');
-      console.log('Command:', cmd); // باه نشوفو الأمر كامل
-    })
+  .on('start', () => {
+      console.log('✅ FFmpeg بدأ البث الإمبراطوري 👑');
+  })
   .on('error', (err) => {
-      console.log('FFmpeg طاح:', err.message);
-      setTimeout(startFFmpeg, 5000);
-    })
-  .on('end', () => {
-      console.log('FFmpeg انتهى، إعادة تشغيل...');
-      setTimeout(startFFmpeg, 5000);
-    });
+      console.log('❌ FFmpeg طاح:', err.message);
+  });
+  
   ffmpegProcess.run();
 
-  // ابعث الصورة كل ثانية
+  // نبعث صورة كل ثانية
   setInterval(() => {
-    if (currentOverlay && ffmpegProcess && ffmpegProcess.stdin) {
-      try {
-        ffmpegProcess.stdin.write(currentOverlay);
-      } catch (e) {
-        console.log('خطأ في إرسال الصورة:', e.message);
-      }
+    if (currentOverlay && ffmpegProcess.stdin.writable) {
+      ffmpegProcess.stdin.write(currentOverlay);
     }
   }, 1000);
 }
 
-// === الدالة الرئيسية - كل شيء هنا ===
 async function main() {
-  // 1. قاعدة البيانات أول شيء
-  const adapter = new JSONFile('db.json');
-  const db = new Low(adapter);
+  const db = new Low(new JSONFile('db.json'), {});
   await db.read();
-
-  db.data ||= {
-    users: {},
-    game: { current_quiz: 'عاصمة الجزائر؟', answer: 'الجزائر', quiz_index: 0 },
-    million: { secret_word: 'تكنولوجيا', hints_given: 0, treasure_found: false },
-    fajr: { verse: 0, listeners: [] },
-    event: { active: false }
-  };
+  db.data ||= { users: {}, game: {}, million: {}, fajr: {}, event: {} };
   await db.write();
-  console.log('✅ قاعدة البيانات جاهزة');
+  console.log('قاعدة البيانات جاهزة');
 
-  // 2. Routes تاعك - حطهم هنا
-  app.get('/health', (req, res) => res.json({ status: 'ok', mode: getCurrentMode() }));
+  // أهم سطر: ولد الصورة قبل ما تشغل FFmpeg
+  currentOverlay = await generateOverlay(db);
+  console.log('أول صورة جاهزة ✅ الحجم:', currentOverlay.length);
 
-  app.get('/overlay', async (req, res) => {
-    currentOverlay = await generateOverlay(db);
-    res.set('Content-Type', 'image/png');
-    res.send(currentOverlay);
-  });
-
-  // زيد Routes تاعك هنا...
-
-  // 3. الكرون والـ Interval
-  setInterval(updateChannelStats, 300000);
-  updateChannelStats();
-
-  setInterval(async () => {
-    currentOverlay = await generateOverlay(db);
-    jokeIndex++;
-    motivationIndex++;
-  }, 10000);
-
-  // 4. شغل FFmpeg
   startFFmpeg();
-
-  // 5. شغل السرفر - آخر شيء
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-  });
+  app.listen(PORT, () => console.log(`🚀 Server running`));
 }
 
-// شغل كلشي
-main().catch(err => {
-  console.error('💀 فشل تشغيل السرفر:', err);
-  process.exit(1);
-});
+main();
