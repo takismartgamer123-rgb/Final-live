@@ -30,6 +30,8 @@ const CHANNEL_ID = process.env.YT_CHANNEL_ID || 'حط_Channel_ID_هنا';
 const CHANNEL_NAME = 'ɪʈʂ ʈɑkɪ!! 🇩🇿²⁴';
 
 let viewers = 0, chatMessages = [];
+let jokeIndex = 0;
+let motivationIndex = 0;
 let currentMode = 'main', currentOverlay = null;
 let ffmpegProcess = null, chatBot = null;
 let channelStats = { subs: '4.9K', views: '2.8M', videos: '36', lastVid: '1M' };
@@ -350,6 +352,7 @@ async function generateOverlay() {
     x.font = '32px Cairo';
     x.fillStyle = '#FFFFFF';
     x.fillText(JOKES[jokeIndex % JOKES.length], 70, 400);
+
     // ركن التحفيز
     x.fillStyle = 'rgba(0,100,0,0.9)';
     x.fillRect(50, 420, 1820, 70);
