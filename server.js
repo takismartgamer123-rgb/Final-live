@@ -697,12 +697,30 @@ app.get('/health', (req, res) => res.json({
   treasure_found: db.data.million.treasure_found
 }));
 
-app.listen(PORT, async () => {
-  await db.read(); await db.write();
-  startFFmpeg();
-  startChatBot();
-  console.log(`🚀 ${CHANNEL_NAME} الإمبراطور شغال على البورت ${PORT}`);
-  console.log(`المود الحالي: ${getCurrentMode()}`);
-  console.log(`كنز اليوم: ${db.data.million.secret_word}`);
-  console.log(`عدد الألغاز: ${HOUMA_QUIZZES.length}`);
+// --- قاعدة البيانات --- //
+const adapter = new JSONFile('db.json');
+const db = new Low(adapter);
+
+// شغّل كل شيء بعد ما تقرا الداتا
+(async () => {
+  await db.read();
+  db.data ||= {
+    users: {},
+    game: { current_quiz: 'عاصمة الجزائر؟', answer: 'الجزائر', quiz_index: 0 },
+    million: { secret_word: 'تكنولوجيا', hints_given: 0, treasure_found: false },
+    fajr: { verse: 0, listeners: [] },
+    event: { active: false }
+  };
+  await db.write();
+  console.log('✅ قاعدة البيانات جاهزة');
+
+  // ضرك شغّل السرفر بعد ما الداتا وجدت
+  const PORT = process.env.PORT || 10000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
+
+})().catch(err => {
+  console.error('💀 فشل تشغيل السرفر:', err);
+  process.exit(1);
 });
