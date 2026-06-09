@@ -14,14 +14,29 @@ const PORT = process.env.PORT || 3000;
 process.on('uncaughtException', (err) => console.error('خطأ غير متوقع:', err.message));
 process.on('unhandledRejection', (err) => console.error('Promise مرفوض:', err.message));
 
-// === قاعدة البيانات ===
-const db = new Low(new JSONFile('db.json'), {
+// --- قاعدة البيانات --- //
+const adapter = new JSONFile('db.json');
+const db = new Low(adapter, {
   users: {},
   game: { current_quiz: 'عاصمة الجزائر؟', answer: 'الجزائر', quiz_index: 0 },
   million: { secret_word: 'تكنولوجيا', hints_given: 0, treasure_found: false },
   fajr: { verse: 0, listeners: [] },
   event: { active: false }
 });
+
+// لازم تقراها قبل ما تستعملها - هذا هو الحل الصح
+(async () => {
+  await db.read();
+  db.data ||= {
+    users: {},
+    game: { current_quiz: 'عاصمة الجزائر؟', answer: 'الجزائر', quiz_index: 0 },
+    million: { secret_word: 'تكنولوجيا', hints_given: 0, treasure_found: false },
+    fajr: { verse: 0, listeners: [] },
+    event: { active: false }
+  };
+  await db.write();
+  console.log('✅ قاعدة البيانات جاهزة');
+})();
 
 // === المتغيرات - بدّلهم في Render ===
 const YT_STREAM_KEY = process.env.YT_STREAM_KEY || 'حط_مفتاح_البث_هنا';
@@ -31,7 +46,7 @@ const CHANNEL_NAME = 'ɪʈʂ ʈɑkɪ!! 🇩🇿²⁴';
 
 let viewers = 0, chatMessages = [];
 let jokeIndex = 0;
-let motivIndex = 0;
+let motivationIndex = 0;
 let currentMode = 'main', currentOverlay = null;
 let ffmpegProcess = null, chatBot = null;
 let channelStats = { subs: '4.9K', views: '2.8M', videos: '36', lastVid: '1M' };
@@ -379,7 +394,7 @@ async function generateOverlay() {
       x.fillText('اكتب "آمين" +100 حسنة', 1870, 720);
     }
     else if (currentMode === 'main') {
-      const quiz = HOUMA_QUIZZES[db.data.game.quiz_index % HOUMA_QUIZZES.length];
+      const quiz = HOUMA_QUIZZES[db.data?.game?.quiz_index % HOUMA_QUIZZES.length];
       x.fillText('🔥 لغز البرق الإمبراطوري 🔥', 1870, 580);
       x.fillStyle = '#00BFFF';
       x.fillText(quiz.q, 1870, 660);
@@ -542,14 +557,14 @@ function startChatBot() {
 
       if (mode === 'main' && msg.startsWith('!جواب')) {
         const answer = msg.replace('!جواب', '').trim();
-        const quiz = HOUMA_QUIZZES[db.data.game.quiz_index % HOUMA_QUIZZES.length];
+        const quiz = HOUMA_QUIZZES[db.data?.game?.quiz_index % HOUMA_QUIZZES.length];
         if (answer.toLowerCase() === quiz.a.toLowerCase()) {
           db.data.users[author].points += 100;
           chatMessages.push({ author: 'البوت', msg: `⚡⚡ ${author} برق الإمبراطور +100 نقطة 🔥` });
           // بدل السؤال
-          db.data.game.quiz_index++;
-          db.data.game.current_quiz = HOUMA_QUIZZES[db.data.game.quiz_index % HOUMA_QUIZZES.length].q;
-          db.data.game.answer = HOUMA_QUIZZES[db.data.game.quiz_index % HOUMA_QUIZZES.length].a;
+          db.data?.game?.quiz_index++;
+          db.data.game.current_quiz = HOUMA_QUIZZES[db.data?.game?.quiz_index % HOUMA_QUIZZES.length].q;
+          db.data.game.answer = HOUMA_QUIZZES[db.data?.game?.quiz_index % HOUMA_QUIZZES.length].a;
         }
       }
 
@@ -656,9 +671,9 @@ cron.schedule('0 0 * * *', async () => {
 cron.schedule('*/5 * * * *', async () => {
   if (getCurrentMode() === 'main') {
     await db.read();
-    db.data.game.quiz_index = (db.data.game.quiz_index + 1) % HOUMA_QUIZZES.length;
-    db.data.game.current_quiz = HOUMA_QUIZZES[db.data.game.quiz_index].q;
-    db.data.game.answer = HOUMA_QUIZZES[db.data.game.quiz_index].a;
+    db.data?.game?.quiz_index = (db.data?.game?.quiz_index + 1) % HOUMA_QUIZZES.length;
+    db.data.game.current_quiz = HOUMA_QUIZZES[db.data?.game?.quiz_index].q;
+    db.data.game.answer = HOUMA_QUIZZES[db.data?.game?.quiz_index].a;
     await db.write();
   }
 });
