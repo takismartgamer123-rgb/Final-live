@@ -376,31 +376,56 @@ async function generateOverlay(db) {
 // === 4. FFmpeg مع preset ultrafast ===
 function startFFmpeg() {
   if (ffmpegProcess) { try { ffmpegProcess.kill('SIGKILL'); } catch (e) {} }
-  console.log('تشغيل FFmpeg الإمبراطور...');
+  console.log('تشغيل FFmpeg الإمبراطور... المفتاح:', YT_STREAM_KEY.substring(0, 8));
+
   ffmpegProcess = ffmpeg()
-   .input('color=c=black:s=1920x1080:r=1').inputFormat('lavfi')
-   .input('pipe:0').inputOptions(['-f', 'image2pipe', '-framerate', '1', '-update', '1'])
-   .complexFilter(['[0:v][1:v] overlay=0:0'])
-   .outputOptions([
+   // 1. صوت صامت - YouTube لازم صوت
+  .input('anullsrc=channel_layout=stereo:sample_rate=44100').inputFormat('lavfi')
+   // 2. الصورة تاعك
+  .input('pipe:0').inputOptions(['-f', 'image2pipe', '-framerate', '1', '-update', '1'])
+   // 3. حركة وهمية باه YouTube ما يحسبهاش جامدة
+  .complexFilter([
+      '[1:v] scale=1920:1080,drawbox=x=0:y=0:w=1:h=1:color=black@0.01:t=fill:enable=\'eq(mod(n,30),0)\' [v]'
+    ])
+  .outputOptions([
+      '-map [v]', // الصورة
+      '-map 0:a', // الصوت الصامت
       '-c:v libx264',
-      '-preset ultrafast', // راك طلبتو
+      '-preset ultrafast',
       '-tune zerolatency',
       '-maxrate 3000k',
       '-bufsize 6000k',
       '-pix_fmt yuv420p',
       '-g 60',
       '-r 30',
+      '-c:a aac', // كودك الصوت
+      '-b:a 128k',
+      '-ar 44100',
       '-f flv'
     ])
-   .output(`rtmp://a.rtmp.youtube.com/live2/${YT_STREAM_KEY}`)
-   .on('start', () => console.log('FFmpeg بدأ البث الإمبراطوري 👑'))
-   .on('error', (err) => { console.log('FFmpeg طاح:', err.message); setTimeout(startFFmpeg, 5000); })
-   .on('end', () => { console.log('FFmpeg انتهى، إعادة تشغيل...'); setTimeout(startFFmpeg, 5000); });
+  .output(`rtmp://a.rtmp.youtube.com/live2/${YT_STREAM_KEY}`)
+  .on('start', (cmd) => {
+      console.log('FFmpeg بدأ البث الإمبراطوري 👑');
+      console.log('Command:', cmd); // باه نشوفو الأمر كامل
+    })
+  .on('error', (err) => {
+      console.log('FFmpeg طاح:', err.message);
+      setTimeout(startFFmpeg, 5000);
+    })
+  .on('end', () => {
+      console.log('FFmpeg انتهى، إعادة تشغيل...');
+      setTimeout(startFFmpeg, 5000);
+    });
   ffmpegProcess.run();
 
+  // ابعث الصورة كل ثانية
   setInterval(() => {
-    if (currentOverlay && ffmpegProcess && ffmpegProcess.ffmpegProc) {
-      try { ffmpegProcess.stdin.write(currentOverlay); } catch (e) {}
+    if (currentOverlay && ffmpegProcess && ffmpegProcess.stdin) {
+      try {
+        ffmpegProcess.stdin.write(currentOverlay);
+      } catch (e) {
+        console.log('خطأ في إرسال الصورة:', e.message);
+      }
     }
   }, 1000);
 }
