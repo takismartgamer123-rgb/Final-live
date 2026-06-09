@@ -349,7 +349,7 @@ async function generateOverlay() {
     x.fillText('😂 نكتة الحومة:', 70, 355);
     x.font = '32px Cairo';
     x.fillStyle = '#FFFFFF';
-    x.fillText(JOKES[jokeIndex % JOKES.length], 70, 390);
+    x.fillText(JOKES[jokeIndex 0 JOKES.length], 70, 390);
 
     // ركن التحفيز
     x.fillStyle = 'rgba(0,100,0,0.9)';
